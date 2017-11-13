@@ -1,9 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Text;
 
 //using DotNetEnv;
 //using StackExchange.Redis;
 //using Npgsql;
 using Dapper;
+//using Confluent.Kafka;
+//using Confluent.Kafka.Serialization;
 
 namespace DemoStuff
 {
@@ -94,6 +98,34 @@ namespace DemoStuff
                 );
                 Console.WriteLine("added: {0}", addedThing);
             }
+
+            // https://github.com/confluentinc/confluent-kafka-dotnet/blob/master/examples/SimpleProducer/Program.cs
+            Console.WriteLine("playing with kafka");
+            const string kafkaTopic = "test";
+            var kafkaConfig = new Dictionary<string, object> { { "bootstrap.servers", "localhost:9092" } };
+
+            using (var producer = new Confluent.Kafka.Producer<Confluent.Kafka.Null, string>(
+                kafkaConfig, null, new Confluent.Kafka.Serialization.StringSerializer(Encoding.UTF8)))
+            {
+                Console.WriteLine($"{producer.Name} producing on {kafkaTopic}");
+
+                var now = DateTime.UtcNow;
+
+                var deliveryReport = producer.ProduceAsync(kafkaTopic, null, $"Hello world {now}");
+                deliveryReport.ContinueWith(task =>
+                {
+                    Console.WriteLine($"Partition: {task.Result.Partition}, Offset: {task.Result.Offset}");
+                });
+
+                // Tasks are not waited on synchronously (ContinueWith is not synchronous),
+                // so it's possible they may still in progress here.
+                producer.Flush(TimeSpan.FromSeconds(10));
+
+                Console.WriteLine("published on kafka: {0}", now);
+            }
+
+            // https://www.quartz-scheduler.net/documentation/quartz-3.x/tutorial/index.html
+            Console.WriteLine("playing with quartz");
         }
     }
 
